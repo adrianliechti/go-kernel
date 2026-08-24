@@ -1,0 +1,307 @@
+version: '3'
+
+vars:
+  # Source trees the generated font tables are derived from. Override on the
+  # command line if your checkouts live elsewhere:
+  #   task generate PDF_INSPECTOR=/path/to/pdf-inspector
+  PDF_INSPECTOR: '{{.PDF_INSPECTOR | default "../pdf-inspector"}}'
+  # Complete cross-format corpus. `task corpus-xberg` fetches the default
+  # location; override CORPUS to reuse an existing checkout.
+  CORPUS: '{{.CORPUS | default "pkg/pdf/testdata/external/test_documents"}}'
+  TTF_PARSER_VERSION: '0.25.1'
+  CORPUS_XBERG_REV: 'a0cf3cbef274277e0079f1ef66fc4dc77a5684bc'
+  CORPUS_PYPDF_REV: '818dc013ad1f537198e9fcfae8a6b0dffe25ffa3'
+  CORPUS_CAMELOT_REV: '7779eecfdab7a85ba12ec3d1285b305c7e327e3a'
+  CORPUS_MARKITDOWN_REV: '9dc0d6579b8739c9d0671ff205e071e3053c7df1'
+  CORPUS_TABULA_REV: '2cdf3b4fd3f7e921dca8cc6814cdd9316be40f0f'
+  CORPUS_PYMUPDF4LLM_REV: '6e511542f672438215cbde2363199b864e772987'
+  CORPUS_PDFPLUMBER_REV: '4c64b92d5caccd71c645e98e0fabb0c4dba7ff45'
+  CORPUS_MARKER_REV: 'e1a6226adfaab4cd573cfa96e12d60905ee38036'
+  CORPUS_OLMOCR_REV: '54a96a6fb6a2bd3b297e59869491db4d3625b711'
+  CORPUS_SYNTHETIC_TABLE_REV: '59455cf9f431df7e2812738ce2c359ecd90b8bca'
+
+tasks:
+  default:
+    desc: Format, vet and test
+    cmds:
+      - task: check
+
+  check:
+    desc: Run the full local gate (fmt check, vet, test)
+    cmds:
+      - task: fmt-check
+      - task: corpus-fixtures-verify
+      - task: vet
+      - task: test
+
+  build:
+    desc: Build all packages
+    cmds:
+      - go build ./...
+
+  install-ooxml:
+    desc: Install the ooxml2md corpus/scoring CLI into GOBIN
+    cmds:
+      - go install ./cmd/ooxml2md
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./... {{.CLI_ARGS}}
+
+  test-short:
+    desc: Run local tests while skipping full external corpus sweeps
+    cmds:
+      - go test -short ./... {{.CLI_ARGS}}
+
+  test-corpus:
+    desc: Run OOXML and email tests against the complete external corpus
+    env:
+      GO_KERNEL_CORPUS: '{{.CORPUS}}'
+    cmds:
+      - go test ./pkg/ooxml ./pkg/msg {{.CLI_ARGS}}
+
+  test-race:
+    desc: Run all tests with the race detector
+    cmds:
+      - go test -race ./... {{.CLI_ARGS}}
+
+  cover:
+    desc: Run tests and open the HTML coverage report
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out
+
+  fmt:
+    desc: Format all Go source
+    cmds:
+      - gofmt -w .
+
+  fmt-check:
+    desc: Fail if any file is not gofmt-clean
+    cmds:
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then
+          echo "not gofmt-clean:" >&2
+          echo "$unformatted" >&2
+          exit 1
+        fi
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  tidy:
+    desc: Tidy go.mod / go.sum
+    cmds:
+      - go mod tidy
+
+  # ── code generation ────────────────────────────────────────────────
+
+  ttf-parser-path:
+    desc: Print the resolved ttf-parser crate source path
+    silent: true
+    cmds:
+      - |
+        p="$(ls -d "$HOME"/.cargo/registry/src/*/ttf-parser-{{.TTF_PARSER_VERSION}} 2>/dev/null | head -1)"
+        if [ -z "$p" ]; then
+          echo "ttf-parser {{.TTF_PARSER_VERSION}} not in the cargo registry." >&2
+          echo "Run 'cargo fetch' inside {{.PDF_INSPECTOR}} first." >&2
+          exit 1
+        fi
+        echo "$p"
+
+  generate:
+    desc: Regenerate the font name tables from the Rust sources
+    cmds:
+      - |
+        crate="$(ls -d "$HOME"/.cargo/registry/src/*/ttf-parser-{{.TTF_PARSER_VERSION}} 2>/dev/null | head -1)"
+        if [ -z "$crate" ]; then
+          echo "ttf-parser {{.TTF_PARSER_VERSION}} not in the cargo registry." >&2
+          echo "Run 'cargo fetch' inside {{.PDF_INSPECTOR}} first." >&2
+          exit 1
+        fi
+        agl="{{.PDF_INSPECTOR}}/src/glyph_names.rs"
+        if [ ! -f "$agl" ]; then
+          echo "glyph_names.rs not found at $agl" >&2
+          echo "Set PDF_INSPECTOR to your pdf-inspector checkout." >&2
+          exit 1
+        fi
+        go run ./pkg/pdf/internal/font/gen -rust "$agl" -crate "$crate" -out pkg/pdf/internal/font
+      - task: fmt-check
+
+  # ── fidelity harness ───────────────────────────────────────────────
+
+  ref-build:
+    desc: Build the Rust reference binaries used for differential testing
+    dir: '{{.PDF_INSPECTOR}}'
+    cmds:
+      - cargo build --release --bin pdf2md --bin detect-pdf --bin dump_ops
+
+  golden:
+    desc: Regenerate golden outputs from the Rust reference (needs ref-build)
+    cmds:
+      - ./scripts/gen-golden.sh {{.PDF_INSPECTOR}}
+
+  golden-strict:
+    desc: Run the differential harness, failing on any mismatch
+    env:
+      GOLDEN_STRICT: '1'
+    cmds:
+      - go test ./pkg/pdf -run TestGolden -v
+
+  score:
+    desc: Score OOXML output against corpus ground truth
+    cmds:
+      - ./scripts/score-ooxml.sh {{.CORPUS}} {{.CLI_ARGS}}
+
+  score-docx:
+    desc: Score only Word documents
+    cmds:
+      - ./scripts/score-ooxml.sh {{.CORPUS}} docx
+
+  score-xlsx:
+    desc: Score only spreadsheets
+    cmds:
+      - ./scripts/score-ooxml.sh {{.CORPUS}} xlsx
+
+  score-pptx:
+    desc: Score only presentations
+    cmds:
+      - ./scripts/score-ooxml.sh {{.CORPUS}} pptx
+
+  corpus-fetch:
+    desc: Fetch every pinned external PDF/layout corpus (several GB, gitignored)
+    cmds:
+      - task: corpus-xberg
+      - task: corpus-pypdf
+      - task: corpus-layout-fetch
+      - task: corpus-benchmark-fetch
+
+  corpus-fixtures-verify:
+    desc: Verify the committed external regression fixtures
+    cmds:
+      - |
+        if command -v sha256sum >/dev/null 2>&1; then
+          sha256sum -c pkg/pdf/testdata/external/SHA256SUMS
+        else
+          shasum -a 256 -c pkg/pdf/testdata/external/SHA256SUMS
+        fi
+
+  corpus-layout-fetch:
+    desc: Fetch complete fixture repositories used by PDF-to-Markdown projects
+    cmds:
+      - task: corpus-camelot
+      - task: corpus-markitdown
+      - task: corpus-tabula
+      - task: corpus-pymupdf4llm
+      - task: corpus-pdfplumber
+      - task: corpus-marker
+
+  corpus-benchmark-fetch:
+    desc: Fetch public deterministic PDF/Markdown benchmark datasets
+    cmds:
+      - task: corpus-olmocr
+      - task: corpus-synthetic-tables
+
+  corpus-xberg:
+    desc: 'Fetch xberg-io/test_documents (379 PDFs, ~1.2 GB, needs git-lfs)'
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/test_documents rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_XBERG_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/test_documents/pdf/embedded_images_tables.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/xberg-io/test_documents.git pkg/pdf/testdata/external/test_documents {{.CORPUS_XBERG_REV}}
+
+  corpus-pypdf:
+    desc: 'Fetch py-pdf/sample-files (34 PDFs, ~26 MB)'
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/sample-files rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_PYPDF_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/sample-files/026-latex-multicolumn/multicolumn.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/py-pdf/sample-files.git pkg/pdf/testdata/external/sample-files {{.CORPUS_PYPDF_REV}}
+
+  corpus-camelot:
+    desc: Fetch all Camelot test PDFs
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/camelot rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_CAMELOT_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/camelot/tests/files/tableception.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/camelot-dev/camelot.git pkg/pdf/testdata/external/corpora/camelot {{.CORPUS_CAMELOT_REV}}
+
+  corpus-markitdown:
+    desc: Fetch all MarkItDown fixtures and expected outputs
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/markitdown rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_MARKITDOWN_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/markitdown/packages/markitdown/tests/test_files/SPARSE-2024-INV-1234_borderless_table.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/microsoft/markitdown.git pkg/pdf/testdata/external/corpora/markitdown {{.CORPUS_MARKITDOWN_REV}}
+
+  corpus-tabula:
+    desc: Fetch all Tabula PDF, CSV, JSON, and TSV fixtures
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/tabula-java rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_TABULA_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/tabula-java/src/test/resources/technology/tabula/spanning_cells.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/tabulapdf/tabula-java.git pkg/pdf/testdata/external/corpora/tabula-java {{.CORPUS_TABULA_REV}}
+
+  corpus-pymupdf4llm:
+    desc: Fetch all PyMuPDF4LLM PDF/Markdown fixtures
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/pymupdf4llm rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_PYMUPDF4LLM_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/pymupdf4llm/tests/test_sce_150_1.pdf
+      - test -s pkg/pdf/testdata/external/corpora/pymupdf4llm/tests/test_sce_150_1.expected.md
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/pymupdf/pymupdf4llm.git pkg/pdf/testdata/external/corpora/pymupdf4llm {{.CORPUS_PYMUPDF4LLM_REV}}
+
+  corpus-pdfplumber:
+    desc: Fetch all pdfplumber PDFs and assertion-based table oracles
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/pdfplumber rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_PDFPLUMBER_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/pdfplumber/tests/pdfs/issue-1181.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/jsvine/pdfplumber.git pkg/pdf/testdata/external/corpora/pdfplumber {{.CORPUS_PDFPLUMBER_REV}}
+
+  corpus-marker:
+    desc: Fetch Marker tests and benchmark adapters (its unit-test PDFs are private)
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/marker rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_MARKER_REV}}"
+      - test -s pkg/pdf/testdata/external/corpora/marker/tests/conftest.py
+      - test -s pkg/pdf/testdata/external/corpora/marker/benchmarks/README.md
+    cmds:
+      - ./scripts/fetch-corpus.sh https://github.com/datalab-to/marker.git pkg/pdf/testdata/external/corpora/marker {{.CORPUS_MARKER_REV}}
+
+  corpus-olmocr:
+    desc: Fetch Marker/olmOCR-Bench (1,403 PDFs and 7,018 JSONL checks at the pin)
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/olmocr-bench rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_OLMOCR_REV}}"
+      - test -s pkg/pdf/testdata/external/corpora/olmocr-bench/bench_data/table_tests.jsonl
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/olmocr-bench/bench_data/pdfs/arxiv_math/2502.15977_pg21.pdf
+    cmds:
+      - ./scripts/fetch-corpus.sh https://huggingface.co/datasets/allenai/olmOCR-bench pkg/pdf/testdata/external/corpora/olmocr-bench {{.CORPUS_OLMOCR_REV}}
+
+  corpus-synthetic-tables:
+    desc: Fetch all 246 deterministic synthetic PDF/Markdown table pairs
+    status:
+      - test "$(git -C pkg/pdf/testdata/external/corpora/synthetic-table-bench rev-parse HEAD 2>/dev/null)" = "{{.CORPUS_SYNTHETIC_TABLE_REV}}"
+      - grep -aqm1 '^%PDF-' pkg/pdf/testdata/external/corpora/synthetic-table-bench/data/test/layout/pdfs/edge_tiny_3x2.pdf
+      - test -s pkg/pdf/testdata/external/corpora/synthetic-table-bench/data/test/layout/ground_truth/edge_tiny_3x2.md
+    cmds:
+      - ./scripts/fetch-corpus.sh https://huggingface.co/datasets/roma2025/synthetic-table-bench pkg/pdf/testdata/external/corpora/synthetic-table-bench {{.CORPUS_SYNTHETIC_TABLE_REV}}
+
+  corpus-probe:
+    desc: Run the object-layer probe over every fetched corpus
+    cmds:
+      - |
+        for dir in pkg/pdf/testdata/fixtures pkg/pdf/testdata/external/*/; do
+          [ -d "$dir" ] || continue
+          echo "== $dir"
+          go run ./pkg/pdf/internal/spike "$dir" | tail -1
+        done
+
+  clean:
+    desc: Remove build and coverage artifacts
+    cmds:
+      - rm -f coverage.out
+      - go clean -testcache
