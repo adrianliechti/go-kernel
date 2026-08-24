@@ -80,7 +80,10 @@ func coreFontWidths(name string) *fontWidths {
 	}
 	widths := make(map[uint16]uint16, 256)
 	for code := 0; code < 256; code++ {
-		w := pdffont.CharWidth(name, rune(code))
+		w, err := pdffont.CharWidth(name, rune(code))
+		if err != nil {
+			return nil
+		}
 		if w < 0 {
 			w = 0
 		}
