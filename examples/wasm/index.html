@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>go-kernel WebAssembly demo</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Local document extraction</p>
+        <h1>go-kernel in the browser</h1>
+        <p class="lede">
+          Files stay in this tab. A Go WebAssembly module turns supported
+          documents into Markdown without sending them to a server.
+        </p>
+      </header>
+
+      <section class="card controls" aria-labelledby="input-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step">01</p>
+            <h2 id="input-heading">Choose an input</h2>
+          </div>
+          <span id="runtime-status" class="status" role="status">Loading Go…</span>
+        </div>
+
+        <label class="file-picker">
+          <span>PDF, Office, HTML, EML, or MSG</span>
+          <input id="file-input" type="file" disabled>
+        </label>
+        <button id="extract-file" type="button" disabled>Extract selected file</button>
+
+        <div class="divider"><span>or try HTML</span></div>
+
+        <label for="html-input">HTML source</label>
+        <textarea id="html-input" rows="9" spellcheck="false"><article>
+  <h1>WebAssembly is ready</h1>
+  <p>This HTML is converted by <strong>Go</strong>, directly in your browser.</p>
+  <ul>
+    <li>No upload</li>
+    <li>No backend</li>
+  </ul>
+</article></textarea>
+        <button id="extract-html" type="button" disabled>Convert sample HTML</button>
+      </section>
+
+      <section class="card output" aria-labelledby="output-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step">02</p>
+            <h2 id="output-heading">Markdown</h2>
+          </div>
+          <button id="copy-output" class="quiet" type="button" disabled>Copy</button>
+        </div>
+        <pre id="markdown-output" tabindex="0">The extracted Markdown will appear here.</pre>
+        <details id="document-details" hidden>
+          <summary>Document details</summary>
+          <pre id="details-output"></pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="wasm_exec.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

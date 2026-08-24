@@ -2,6 +2,7 @@
 coverage.out
 *.test
 /dist/
+/examples/wasm/dist/
 
 # Complete pinned corpora are fetched on demand. The small flat regression
 # cross-section beside these directories is intentionally retained.

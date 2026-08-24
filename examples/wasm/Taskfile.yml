@@ -1,0 +1,26 @@
+version: "3"
+
+vars:
+  DIST: dist
+  GOROOT:
+    sh: go env GOROOT
+
+tasks:
+  build:
+    desc: Build the WebAssembly module and browser assets
+    cmds:
+      - mkdir -p {{.DIST}}
+      - GOOS=js GOARCH=wasm go build -o {{.DIST}}/kernel.wasm .
+      - cp {{.GOROOT}}/lib/wasm/wasm_exec.js {{.DIST}}/wasm_exec.js
+      - cp index.html app.js styles.css {{.DIST}}/
+
+  serve:
+    desc: Build and serve the browser example
+    deps: [build]
+    cmds:
+      - go run . -dir {{.DIST}}
+
+  clean:
+    desc: Remove generated browser assets
+    cmds:
+      - rm -rf {{.DIST}}

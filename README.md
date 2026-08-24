@@ -57,3 +57,15 @@ markdown, err := htmlconv.ToMarkdown(
 	htmlconv.Options{BaseURL: "https://example.com/"},
 )
 ```
+
+## WebAssembly example
+
+The complete extractor can run locally in a browser through Go WebAssembly.
+Build and serve the included file-upload and HTML demo with:
+
+```sh
+task --dir examples/wasm serve
+```
+
+Then open <http://localhost:8080>. See [`examples/wasm`](examples/wasm) for
+details.

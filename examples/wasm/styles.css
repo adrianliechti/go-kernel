@@ -1,0 +1,259 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f2efe8;
+  color: #17221d;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgb(224 239 222 / 80%), transparent 32rem),
+    #f2efe8;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 1.25rem;
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+header {
+  grid-column: 1 / -1;
+  max-width: 760px;
+  margin-bottom: 1rem;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 680px;
+  margin-bottom: 1rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 8vw, 6.75rem);
+  font-weight: 500;
+  letter-spacing: -0.065em;
+  line-height: 0.88;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.25rem;
+}
+
+.eyebrow,
+.step {
+  color: #397c5b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: 590px;
+  color: #536159;
+  font-size: 1.1rem;
+  line-height: 1.65;
+}
+
+.card {
+  min-width: 0;
+  border: 1px solid #d9d5cb;
+  border-radius: 18px;
+  background: rgb(255 255 252 / 82%);
+  box-shadow: 0 22px 60px rgb(45 57 48 / 7%);
+  padding: clamp(1.2rem, 3vw, 2rem);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.step {
+  margin-bottom: 0.35rem;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #7d6119;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.status[data-state="ready"] {
+  color: #287549;
+}
+
+.status[data-state="error"] {
+  color: #ad3737;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #536159;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.file-picker {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px dashed #aab7ac;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input[type="file"] {
+  width: 100%;
+  color: #657169;
+}
+
+input[type="file"]::file-selector-button,
+button {
+  border: 0;
+  border-radius: 999px;
+  background: #1e5a3c;
+  color: white;
+  cursor: pointer;
+  font-weight: 750;
+  padding: 0.78rem 1.1rem;
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 0.8rem;
+}
+
+button {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+button:hover:not(:disabled) {
+  background: #17472f;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+button.quiet {
+  width: auto;
+  margin: 0;
+  border: 1px solid #cad1cb;
+  background: transparent;
+  color: #1e5a3c;
+  padding: 0.5rem 0.85rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1.5rem 0;
+  color: #899289;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+  flex: 1;
+  height: 1px;
+  background: #dddcd5;
+  content: "";
+}
+
+textarea,
+pre {
+  width: 100%;
+  border: 1px solid #d9dcd7;
+  border-radius: 10px;
+  background: #f7f8f4;
+  color: #25332c;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+textarea {
+  min-height: 13rem;
+  padding: 0.9rem;
+  resize: vertical;
+}
+
+pre {
+  min-height: 26rem;
+  max-height: 38rem;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+details {
+  margin-top: 1rem;
+  color: #536159;
+}
+
+details pre {
+  min-height: auto;
+  max-height: 20rem;
+  margin-top: 0.75rem;
+}
+
+summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  main {
+    grid-template-columns: 1fr;
+    padding: 2rem 0;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 16vw, 5rem);
+  }
+}
