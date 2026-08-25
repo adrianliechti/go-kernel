@@ -11,15 +11,20 @@ type Format string
 
 // Formats supported by the built-in extractors.
 const (
-	FormatUnknown Format = ""
-	FormatPDF     Format = "pdf"
-	FormatDOCX    Format = "docx"
-	FormatXLSX    Format = "xlsx"
-	FormatPPTX    Format = "pptx"
-	FormatRTF     Format = "rtf"
-	FormatHTML    Format = "html"
-	FormatEML     Format = "eml"
-	FormatMSG     Format = "msg"
+	FormatUnknown  Format = ""
+	FormatPDF      Format = "pdf"
+	FormatDOCX     Format = "docx"
+	FormatXLSX     Format = "xlsx"
+	FormatPPTX     Format = "pptx"
+	FormatRTF      Format = "rtf"
+	FormatZIP      Format = "zip"
+	FormatTAR      Format = "tar"
+	FormatGZIP     Format = "gzip"
+	FormatText     Format = "text"
+	FormatMarkdown Format = "markdown"
+	FormatHTML     Format = "html"
+	FormatEML      Format = "eml"
+	FormatMSG      Format = "msg"
 )
 
 // Input is an in-memory document presented for extraction.

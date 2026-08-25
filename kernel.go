@@ -1,5 +1,5 @@
-// Package kernel provides unified, recursive text extraction for PDF, HTML,
-// Office Open XML, RTF, EML, and Outlook MSG documents.
+// Package kernel provides unified, recursive text extraction for documents,
+// email, archives, plain text, and Markdown.
 package kernel
 
 import (
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/adrianliechti/go-kernel/pkg/archive"
 	"github.com/adrianliechti/go-kernel/pkg/eml"
 	"github.com/adrianliechti/go-kernel/pkg/extract"
 	htmlconv "github.com/adrianliechti/go-kernel/pkg/html"
@@ -16,6 +17,7 @@ import (
 	"github.com/adrianliechti/go-kernel/pkg/ooxml"
 	"github.com/adrianliechti/go-kernel/pkg/pdf"
 	"github.com/adrianliechti/go-kernel/pkg/rtf"
+	"github.com/adrianliechti/go-kernel/pkg/text"
 )
 
 type (
@@ -27,15 +29,20 @@ type (
 )
 
 const (
-	FormatUnknown = extract.FormatUnknown
-	FormatPDF     = extract.FormatPDF
-	FormatDOCX    = extract.FormatDOCX
-	FormatXLSX    = extract.FormatXLSX
-	FormatPPTX    = extract.FormatPPTX
-	FormatRTF     = extract.FormatRTF
-	FormatHTML    = extract.FormatHTML
-	FormatEML     = extract.FormatEML
-	FormatMSG     = extract.FormatMSG
+	FormatUnknown  = extract.FormatUnknown
+	FormatPDF      = extract.FormatPDF
+	FormatDOCX     = extract.FormatDOCX
+	FormatXLSX     = extract.FormatXLSX
+	FormatPPTX     = extract.FormatPPTX
+	FormatRTF      = extract.FormatRTF
+	FormatZIP      = extract.FormatZIP
+	FormatTAR      = extract.FormatTAR
+	FormatGZIP     = extract.FormatGZIP
+	FormatText     = extract.FormatText
+	FormatMarkdown = extract.FormatMarkdown
+	FormatHTML     = extract.FormatHTML
+	FormatEML      = extract.FormatEML
+	FormatMSG      = extract.FormatMSG
 )
 
 var (
@@ -52,6 +59,7 @@ const (
 // Options configures the unified dispatcher and its built-in extractors.
 // Recursive attachment extraction is enabled by default.
 type Options struct {
+	Archive archive.Options
 	PDF     pdf.Options
 	OOXML   ooxml.Options
 	RTF     rtf.Options
@@ -97,10 +105,12 @@ func New(opts Options) *Kernel {
 	extractors = append(extractors,
 		pdf.NewExtractor(opts.PDF),
 		ooxml.NewExtractor(opts.OOXML),
+		archive.NewExtractor(opts.Archive),
 		rtf.NewExtractor(opts.RTF),
 		htmlconv.NewExtractor(opts.HTML),
 		eml.NewExtractor(opts.Message),
 		msg.NewExtractor(opts.Message),
+		text.NewExtractor(),
 	)
 
 	maxDepth := opts.MaxDepth

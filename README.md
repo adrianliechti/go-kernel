@@ -7,13 +7,15 @@
 - Excel (`.xlsx`, `.xlsm`, `.xltx`, `.xltm`)
 - PowerPoint (`.pptx`, `.pptm`, `.ppsx`, `.ppsm`, `.potx`, `.potm`)
 - Rich Text Format (`.rtf`)
+- ZIP, TAR, and GZIP archives, including nested archives
+- Plain text and Markdown (`.txt`, `.md`, `.markdown`)
 - HTML documents and fragments
 - Internet email (`.eml`)
 - Outlook messages (`.msg`)
 
-All formats produce Markdown through one interface. Email attachments are
-recursively dispatched through the same extractors, so an EML containing a
-PDF, an Office document, or another email yields a document tree.
+All formats produce Markdown through one interface. Attachments and archive
+entries are recursively dispatched through the same extractors, so chains such
+as EML → ZIP → TAR/GZIP → Office document yield a document tree.
 
 ```go
 package main
@@ -44,11 +46,13 @@ func main() {
 Recursive extraction is on by default and bounded by depth, document-count,
 and per-attachment size limits. Unsupported attachments remain available as
 raw `Attachment.Data`; a supported attachment that fails extraction records a
-non-fatal `Attachment.Error`.
+non-fatal `Attachment.Error`. Archive extraction additionally limits entry
+count, per-entry inflated bytes, and total inflated bytes.
 
-The format-specific APIs remain available under `pkg/pdf`, `pkg/ooxml`,
-`pkg/rtf`, `pkg/html`, `pkg/eml`, and `pkg/msg`. Each package also exposes an
-`Extractor` implementing `pkg/extract.Extractor` for custom registries.
+The format-specific APIs remain available under `pkg/archive`, `pkg/pdf`,
+`pkg/ooxml`, `pkg/rtf`, `pkg/text`, `pkg/html`, `pkg/eml`, and `pkg/msg`. Each
+package also exposes an `Extractor` implementing `pkg/extract.Extractor` for
+custom registries.
 
 HTML can also be converted directly:
 
