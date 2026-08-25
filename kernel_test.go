@@ -20,6 +20,7 @@ func TestExtractRecursivelyExtractsEmailAttachments(t *testing.T) {
 	})
 	outer := buildEML("Outer message", []mailAttachment{
 		{name: "report.docx", mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: docxData},
+		{name: "notes.rtf", mediaType: "application/rtf", data: []byte(`{\rtf1\ansi Attached RTF text}`)},
 		{name: "page.html", mediaType: "text/html", data: []byte("<html><head><title>Attached page</title></head><body><h2>HTML attachment text</h2></body></html>")},
 		{name: "nested.eml", mediaType: "message/rfc822", data: nested},
 		{name: "notes.bin", mediaType: "application/octet-stream", data: []byte("unsupported")},
@@ -39,6 +40,14 @@ func TestExtractRecursivelyExtractsEmailAttachments(t *testing.T) {
 	}
 	if !strings.Contains(docx.Document.Markdown, "Attached Word text") {
 		t.Fatalf("DOCX Markdown = %q", docx.Document.Markdown)
+	}
+
+	rtf := attachmentNamed(t, doc, "notes.rtf")
+	if rtf.Document == nil || rtf.Document.Format != kernel.FormatRTF {
+		t.Fatalf("RTF attachment document = %#v", rtf.Document)
+	}
+	if rtf.Document.Markdown != "Attached RTF text" {
+		t.Fatalf("RTF Markdown = %q", rtf.Document.Markdown)
 	}
 
 	htmlAttachment := attachmentNamed(t, doc, "page.html")

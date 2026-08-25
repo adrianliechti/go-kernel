@@ -3,7 +3,10 @@
 `go-kernel` is a unified, local text-extraction library for:
 
 - PDF
-- Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`)
+- Word (`.docx`, `.docm`, `.dotx`, `.dotm`)
+- Excel (`.xlsx`, `.xlsm`, `.xltx`, `.xltm`)
+- PowerPoint (`.pptx`, `.pptm`, `.ppsx`, `.ppsm`, `.potx`, `.potm`)
+- Rich Text Format (`.rtf`)
 - HTML documents and fragments
 - Internet email (`.eml`)
 - Outlook messages (`.msg`)
@@ -44,8 +47,8 @@ raw `Attachment.Data`; a supported attachment that fails extraction records a
 non-fatal `Attachment.Error`.
 
 The format-specific APIs remain available under `pkg/pdf`, `pkg/ooxml`,
-`pkg/html`, `pkg/eml`, and `pkg/msg`. Each package also exposes an `Extractor`
-implementing `pkg/extract.Extractor` for custom registries.
+`pkg/rtf`, `pkg/html`, `pkg/eml`, and `pkg/msg`. Each package also exposes an
+`Extractor` implementing `pkg/extract.Extractor` for custom registries.
 
 HTML can also be converted directly:
 

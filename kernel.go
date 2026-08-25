@@ -1,5 +1,5 @@
 // Package kernel provides unified, recursive text extraction for PDF, HTML,
-// Office Open XML, EML, and Outlook MSG documents.
+// Office Open XML, RTF, EML, and Outlook MSG documents.
 package kernel
 
 import (
@@ -15,6 +15,7 @@ import (
 	"github.com/adrianliechti/go-kernel/pkg/msg"
 	"github.com/adrianliechti/go-kernel/pkg/ooxml"
 	"github.com/adrianliechti/go-kernel/pkg/pdf"
+	"github.com/adrianliechti/go-kernel/pkg/rtf"
 )
 
 type (
@@ -31,6 +32,7 @@ const (
 	FormatDOCX    = extract.FormatDOCX
 	FormatXLSX    = extract.FormatXLSX
 	FormatPPTX    = extract.FormatPPTX
+	FormatRTF     = extract.FormatRTF
 	FormatHTML    = extract.FormatHTML
 	FormatEML     = extract.FormatEML
 	FormatMSG     = extract.FormatMSG
@@ -52,6 +54,7 @@ const (
 type Options struct {
 	PDF     pdf.Options
 	OOXML   ooxml.Options
+	RTF     rtf.Options
 	HTML    htmlconv.Options
 	Message msg.Options
 
@@ -94,6 +97,7 @@ func New(opts Options) *Kernel {
 	extractors = append(extractors,
 		pdf.NewExtractor(opts.PDF),
 		ooxml.NewExtractor(opts.OOXML),
+		rtf.NewExtractor(opts.RTF),
 		htmlconv.NewExtractor(opts.HTML),
 		eml.NewExtractor(opts.Message),
 		msg.NewExtractor(opts.Message),

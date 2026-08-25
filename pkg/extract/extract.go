@@ -16,6 +16,7 @@ const (
 	FormatDOCX    Format = "docx"
 	FormatXLSX    Format = "xlsx"
 	FormatPPTX    Format = "pptx"
+	FormatRTF     Format = "rtf"
 	FormatHTML    Format = "html"
 	FormatEML     Format = "eml"
 	FormatMSG     Format = "msg"
