@@ -1,5 +1,6 @@
-// Package ooxml converts Office Open XML documents — Word (.docx),
-// Excel (.xlsx) and PowerPoint (.pptx) — into Markdown.
+// Package ooxml converts Office Open XML Word, Excel, and PowerPoint
+// documents, templates, and slide shows into Markdown. Both macro-free and
+// macro-enabled packages are supported; embedded macros are never executed.
 //
 // Embedded images can be extracted to a directory and referenced from the
 // generated Markdown. The package depends only on the standard library.

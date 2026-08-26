@@ -186,7 +186,9 @@ func TestCorpusNoPanics(t *testing.T) {
 			return nil
 		}
 		switch strings.ToLower(filepath.Ext(p)) {
-		case ".docx", ".xlsx", ".pptx":
+		case ".docx", ".docm", ".dotx", ".dotm",
+			".xlsx", ".xlsm", ".xltx", ".xltm",
+			".pptx", ".pptm", ".ppsx", ".ppsm", ".potx", ".potm":
 		default:
 			return nil
 		}

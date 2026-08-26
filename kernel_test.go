@@ -1,8 +1,10 @@
 package kernel_test
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -20,6 +22,7 @@ func TestExtractRecursivelyExtractsEmailAttachments(t *testing.T) {
 	})
 	outer := buildEML("Outer message", []mailAttachment{
 		{name: "report.docx", mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: docxData},
+		{name: "notes.rtf", mediaType: "application/rtf", data: []byte(`{\rtf1\ansi Attached RTF text}`)},
 		{name: "page.html", mediaType: "text/html", data: []byte("<html><head><title>Attached page</title></head><body><h2>HTML attachment text</h2></body></html>")},
 		{name: "nested.eml", mediaType: "message/rfc822", data: nested},
 		{name: "notes.bin", mediaType: "application/octet-stream", data: []byte("unsupported")},
@@ -39,6 +42,14 @@ func TestExtractRecursivelyExtractsEmailAttachments(t *testing.T) {
 	}
 	if !strings.Contains(docx.Document.Markdown, "Attached Word text") {
 		t.Fatalf("DOCX Markdown = %q", docx.Document.Markdown)
+	}
+
+	rtf := attachmentNamed(t, doc, "notes.rtf")
+	if rtf.Document == nil || rtf.Document.Format != kernel.FormatRTF {
+		t.Fatalf("RTF attachment document = %#v", rtf.Document)
+	}
+	if rtf.Document.Markdown != "Attached RTF text" {
+		t.Fatalf("RTF Markdown = %q", rtf.Document.Markdown)
 	}
 
 	htmlAttachment := attachmentNamed(t, doc, "page.html")
@@ -107,6 +118,60 @@ func TestExtractCanDisableRecursionAndDiscardBytes(t *testing.T) {
 	}
 }
 
+func TestExtractRecursesThroughNestedZIPs(t *testing.T) {
+	docxData := buildDOCX(t, "Deeply archived Word text")
+	inner := buildZIP(t, []mailAttachment{
+		{name: "report.docx", data: docxData},
+		{name: "README.md", data: []byte("# Archive notes\n")},
+	})
+	outer := buildZIP(t, []mailAttachment{{name: "nested.zip", data: inner}})
+	email := buildEML("Archives", []mailAttachment{
+		{name: "bundle.zip", mediaType: "application/zip", data: outer},
+	})
+
+	doc, err := kernel.Extract(context.Background(), kernel.Input{Name: "archives.eml", Data: email}, kernel.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := attachmentNamed(t, doc, "bundle.zip")
+	if bundle.Document == nil || bundle.Document.Format != kernel.FormatZIP {
+		t.Fatalf("bundle document = %#v", bundle.Document)
+	}
+	nested := attachmentNamed(t, bundle.Document, "nested.zip")
+	if nested.Document == nil || nested.Document.Format != kernel.FormatZIP {
+		t.Fatalf("nested document = %#v", nested.Document)
+	}
+	report := attachmentNamed(t, nested.Document, "report.docx")
+	if report.Document == nil || report.Document.Format != kernel.FormatDOCX || !strings.Contains(report.Document.Markdown, "Deeply archived Word text") {
+		t.Fatalf("report document = %#v", report.Document)
+	}
+	readme := attachmentNamed(t, nested.Document, "README.md")
+	if readme.Document == nil || readme.Document.Format != kernel.FormatMarkdown || readme.Document.Markdown != "# Archive notes\n" {
+		t.Fatalf("README document = %#v", readme.Document)
+	}
+}
+
+func TestExtractRecursesThroughTarGzip(t *testing.T) {
+	tarData := buildTAR(t, []mailAttachment{{name: "notes.txt", data: []byte("Text inside tar.gz\n")}})
+	gzipData := buildGZIP(t, tarData)
+
+	doc, err := kernel.Extract(context.Background(), kernel.Input{Name: "bundle.tar.gz", Data: gzipData}, kernel.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Format != kernel.FormatGZIP {
+		t.Fatalf("GZIP format = %q", doc.Format)
+	}
+	tarAttachment := attachmentNamed(t, doc, "bundle.tar")
+	if tarAttachment.Document == nil || tarAttachment.Document.Format != kernel.FormatTAR {
+		t.Fatalf("TAR document = %#v", tarAttachment.Document)
+	}
+	notes := attachmentNamed(t, tarAttachment.Document, "notes.txt")
+	if notes.Document == nil || notes.Document.Format != kernel.FormatText || notes.Document.Markdown != "Text inside tar.gz\n" {
+		t.Fatalf("text document = %#v", notes.Document)
+	}
+}
+
 func attachmentNamed(t *testing.T, doc *kernel.Document, name string) *kernel.Attachment {
 	t.Helper()
 	for i := range doc.Attachments {
@@ -153,6 +218,56 @@ func buildDOCX(t *testing.T, text string) []byte {
 		if _, err := part.Write([]byte(content)); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return data.Bytes()
+}
+
+func buildZIP(t *testing.T, files []mailAttachment) []byte {
+	t.Helper()
+	var data bytes.Buffer
+	writer := zip.NewWriter(&data)
+	for _, file := range files {
+		entry, err := writer.Create(file.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write(file.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return data.Bytes()
+}
+
+func buildTAR(t *testing.T, files []mailAttachment) []byte {
+	t.Helper()
+	var data bytes.Buffer
+	writer := tar.NewWriter(&data)
+	for _, file := range files {
+		if err := writer.WriteHeader(&tar.Header{Name: file.name, Mode: 0o600, Size: int64(len(file.data))}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writer.Write(file.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return data.Bytes()
+}
+
+func buildGZIP(t *testing.T, source []byte) []byte {
+	t.Helper()
+	var data bytes.Buffer
+	writer := gzip.NewWriter(&data)
+	if _, err := writer.Write(source); err != nil {
+		t.Fatal(err)
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
